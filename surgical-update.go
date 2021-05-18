@@ -33,6 +33,7 @@ type ViperEx struct {
 	KeyDelimiter string
 }
 
+// UpdateFromEnv will find potential ENV candidates to merge in
 func (ve *ViperEx) UpdateFromEnv(dst map[string]interface{}) error {
 	potential := ve.getPotentialEnvVariables()
 	for key, value := range potential {
@@ -40,6 +41,8 @@ func (ve *ViperEx) UpdateFromEnv(dst map[string]interface{}) error {
 	}
 	return nil
 }
+
+// Find will return the interface to the data if it exists
 func (ve *ViperEx) Find(key string, src map[string]interface{}) interface{} {
 	lcaseKey := strings.ToLower(key)
 	path := strings.Split(lcaseKey, ve.KeyDelimiter)
@@ -65,14 +68,13 @@ func (ve *ViperEx) Find(key string, src map[string]interface{}) interface{} {
 	}
 }
 
+// SurgicalUpdate will update the value if it exists
 func (ve *ViperEx) SurgicalUpdate(key string, value interface{}, dst map[string]interface{}) {
-
 	lcaseKey := strings.ToLower(key)
 	path := strings.Split(lcaseKey, ve.KeyDelimiter)
 
 	lastKey := strings.ToLower(path[len(path)-1])
 
-	fmt.Println(lastKey)
 	path = path[0 : len(path)-1]
 	if len(lastKey) == 0 {
 		// we are targeting an array that contains a primitive
@@ -126,6 +128,8 @@ func (ve *ViperEx) deepSearchArray(m map[string]interface{}, path []string) ([]i
 				return nil, -1
 			}
 			m2 := currentArray[currentIdx]
+			stepArray = false
+
 			m3, ok := m2.(map[string]interface{})
 			if !ok {
 				// is this an array
@@ -148,16 +152,12 @@ func (ve *ViperEx) deepSearchArray(m map[string]interface{}, path []string) ([]i
 			}
 			// continue search from here
 			m = m3
-			stepArray = false // don't support arrays of arrays
+
 		} else {
 			m2, ok := m[k]
 			if !ok {
 				// intermediate key does not exist
-				// => create it and continue from there
-				m3 := make(map[string]interface{})
-				m[k] = m3
-				m = m3
-				continue
+				return nil, -1
 			}
 			m3, ok := m2.(map[string]interface{})
 			if !ok {

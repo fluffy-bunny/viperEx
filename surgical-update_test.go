@@ -154,8 +154,31 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	_, ok := allSettings["junk"]
 	assert.False(t, ok)
 
+	name := myViperEx.Find("name", allSettings)
+	assert.NotNil(t, name)
+
 	nestJunk := myViperEx.Find("nest__junk", allSettings)
 	assert.Nil(t, nestJunk)
+
+	var item interface{}
+
+	item = myViperEx.Find("nest__Eggs", allSettings)
+	assert.NotNil(t, item)
+
+	item = myViperEx.Find("nest__Eggs__", allSettings)
+	assert.Nil(t, item)
+
+	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1__", allSettings)
+	assert.NotNil(t, item)
+
+	item = myViperEx.Find("nest__Eggs__0__Junk__1__", allSettings)
+	assert.Nil(t, item)
+
+	item = myViperEx.Find("nest__junk__0__Junk__1__", allSettings)
+	assert.Nil(t, item)
+
+	item = myViperEx.Find("nest__junk__0__", allSettings)
+	assert.Nil(t, item)
 
 }
 
