@@ -40,6 +40,30 @@ func (ve *ViperEx) UpdateFromEnv(dst map[string]interface{}) error {
 	}
 	return nil
 }
+func (ve *ViperEx) Find(key string, src map[string]interface{}) interface{} {
+	lcaseKey := strings.ToLower(key)
+	path := strings.Split(lcaseKey, ve.KeyDelimiter)
+
+	lastKey := strings.ToLower(path[len(path)-1])
+
+	fmt.Println(lastKey)
+	path = path[0 : len(path)-1]
+	if len(lastKey) == 0 {
+		// we are targeting an array that contains a primitive
+		deepestArray, idx := ve.deepSearchArray(src, path)
+		if deepestArray != nil && idx > -1 {
+			return deepestArray[idx]
+		}
+		return nil
+	} else {
+		deepestMap := ve.deepSearch(src, path)
+		if deepestMap != nil {
+			return deepestMap[lastKey]
+		}
+		return nil
+
+	}
+}
 
 func (ve *ViperEx) SurgicalUpdate(key string, value interface{}, dst map[string]interface{}) {
 
@@ -58,15 +82,14 @@ func (ve *ViperEx) SurgicalUpdate(key string, value interface{}, dst map[string]
 		}
 	} else {
 		deepestMap := ve.deepSearch(dst, path)
-		if deepestMap == nil {
-			fmt.Println("nothign")
-		} else {
+		if deepestMap != nil {
 			// set innermost value
-			deepestMap[lastKey] = value
+			_, ok := deepestMap[lastKey]
+			if ok {
+				deepestMap[lastKey] = value
+			}
 		}
-
 	}
-
 }
 func (ve *ViperEx) getPotentialEnvVariables() map[string]string {
 	var result map[string]string
@@ -193,11 +216,7 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) map[strin
 			m2, ok := m[k]
 			if !ok {
 				// intermediate key does not exist
-				// => create it and continue from there
-				m3 := make(map[string]interface{})
-				m[k] = m3
-				m = m3
-				continue
+				return nil
 			}
 			m3, ok := m2.(map[string]interface{})
 			if !ok {
@@ -209,9 +228,7 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) map[strin
 					m3 = nil
 				} else {
 					// intermediate key is a value
-					// => replace with a new map
-					m3 = make(map[string]interface{})
-					m[k] = m3
+					return nil
 
 				}
 			}

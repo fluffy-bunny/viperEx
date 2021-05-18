@@ -56,79 +56,24 @@ func init() {
 
 const keyDelim = "__"
 
-func InitConfig(rootPath string) (*Settings, error) {
+func ReadAppsettings(rootPath string) (*viper.Viper, error) {
 	var err error
-	settings := Settings{}
 	environment := os.Getenv("APPLICATION_ENVIRONMENT")
 	myViper := viper.NewWithOptions(viper.KeyDelimiter("__"))
-	myViper.SetConfigType("json")
-
 	// Environment Variables override everything.
 	myViper.AutomaticEnv()
-
+	myViper.SetConfigType("json")
 	configFile := "appsettings.json"
 	configPath := path.Join(rootPath, configFile)
 	viper.SetConfigFile(configPath)
 	err = myViper.ReadInConfig()
-	fmt.Println(myViper.GetString("nest__name"))
-
+	if err == nil {
+		return nil, err
+	}
 	configFile = "appsettings." + environment + ".json"
 	myViper.SetConfigFile(configPath)
 	err = myViper.MergeInConfig()
-
-	err = myViper.ReadInConfig()
-	fmt.Println(myViper.GetString("nest__name"))
-
-	var val float64
-	t := myViper.Get("nest__name")
-	fmt.Printf("type is '%T', value: %v\n", t, t)
-
-	t = myViper.Get("nest__CountInt")
-	fmt.Printf("type is '%T', value: %v\n", t, t)
-	val = 123
-	myViper.Set("nest__CountInt", val)
-	t = myViper.Get("nest__CountInt")
-	fmt.Printf("type is '%T', value: %v\n", t, t)
-
-	t = myViper.Get("nest__CountInt16")
-	fmt.Printf("type is '%T', value: %v\n", t, t)
-	myViper.Set("nest__CountInt16", val)
-	t = myViper.Get("nest__CountInt16")
-	fmt.Printf("type is '%T', value: %v\n", t, t)
-
-	t = myViper.Get("nest__Eggs")
-	fmt.Printf("type is '%T', value: %v\n", t, t)
-	eggs := t.([]interface{})
-	egg0 := eggs[0].(map[string]interface{})
-	egg0["weight"] = 444
-
-	myViper.Set("nest__Eggs", eggs)
-	t = myViper.Get("nest__Eggs")
-	fmt.Printf("type is '%T', value: %v\n", t, t)
-
-	myViper.Set("nest__name", "paper")
-	fmt.Println(myViper.GetString("nest__name"))
-
-	allSettings := myViper.AllSettings()
-	fmt.Println(PrettyJSON(allSettings))
-	keys := myViper.AllKeys()
-	for _, key := range keys {
-
-		t = myViper.Get(key)
-		fmt.Printf("key: %v, type is '%T', value: %v\n", key, t, t)
-	}
-
-	myViperEx := New("__")
-	myViperEx.SurgicalUpdate("nest__Eggs__0__Weight", 1234, allSettings)
-	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeValues__1__Value", "abcd", allSettings)
-	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1__", "abcd", allSettings)
-
-	fmt.Println(PrettyJSON(allSettings))
-	myViperEx.UpdateFromEnv(allSettings)
-	err = myViper.Unmarshal(&settings)
-	fmt.Println(PrettyJSON(&settings))
-
-	return &settings, err
+	return myViper, err
 }
 
 func getConfigPath() string {
@@ -151,19 +96,66 @@ func chdirToTestFolder() {
 		panic(err)
 	}
 }
-func TestViperReflect(t *testing.T) {
+
+func TestViperExEnvUpdate(t *testing.T) {
 	configPath := getConfigPath()
-	settings, err := InitConfig(configPath)
+	myViper, err := ReadAppsettings(configPath)
 	assert.NoError(t, err)
-	assert.NotNil(t, settings)
-	assert.Equal(t, "bob", settings.Name)
-	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeValues[1].Value)
-	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeStrings[1])
-	assert.Equal(t, int32(1234), settings.Nest.Eggs[0].Weight)
+	if err != nil {
+		panic(err)
+	}
+	allSettings := myViper.AllSettings()
+	fmt.Println(PrettyJSON(allSettings))
+
+	myViperEx := New("__")
+	myViperEx.UpdateFromEnv(allSettings)
+
+	settings := Settings{}
+	err = myViper.Unmarshal(&settings)
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 
 	assert.Equal(t, "Heidi", settings.Nest.Eggs[1].SomeValues[1].Value)
 	assert.Equal(t, "Zep", settings.Nest.Eggs[1].SomeStrings[1])
 	assert.Equal(t, int32(5555), settings.Nest.Eggs[1].Weight)
+}
+
+func TestViperSurgicalUpdate(t *testing.T) {
+	configPath := getConfigPath()
+	myViper, err := ReadAppsettings(configPath)
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+	allSettings := myViper.AllSettings()
+	fmt.Println(PrettyJSON(allSettings))
+
+	myViperEx := New("__")
+	myViperEx.SurgicalUpdate("nest__Eggs__0__Weight", 1234, allSettings)
+	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeValues__1__Value", "abcd", allSettings)
+	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1__", "abcd", allSettings)
+	myViperEx.SurgicalUpdate("junk__A", "abcd", allSettings)
+	myViperEx.SurgicalUpdate("nest__junk", "abcd", allSettings)
+
+	fmt.Println(PrettyJSON(allSettings))
+
+	settings := Settings{}
+	err = myViper.Unmarshal(&settings)
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+	assert.Equal(t, "bob", settings.Name)
+	assert.Equal(t, int32(1234), settings.Nest.Eggs[0].Weight)
+	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeValues[1].Value)
+	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeStrings[1])
+	_, ok := allSettings["junk"]
+	assert.False(t, ok)
+
+	nestJunk := myViperEx.Find("nest__junk", allSettings)
+	assert.Nil(t, nestJunk)
 
 }
 
