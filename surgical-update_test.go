@@ -50,8 +50,13 @@ func init() {
 	os.Setenv("APPLICATION_ENVIRONMENT", "Test")
 	os.Setenv("nest__Eggs__1__Weight", "5555")
 	os.Setenv("nest__Eggs__1__SomeValues__1__Value", "Heidi")
-	os.Setenv("nest__Eggs__1__SomeStrings__1__", "Zep")
+	os.Setenv("nest__Eggs__1__SomeStrings__1", "Zep")
 	chdirToTestFolder()
+	os.Remove("APPLICATION_ENVIRONMENT")
+	os.Remove("nest__Eggs__1__Weight")
+	os.Remove("nest__Eggs__1__SomeValues__1__Value")
+	os.Remove("nest__Eggs__1__SomeStrings__1")
+
 }
 
 const keyDelim = "__"
@@ -134,7 +139,9 @@ func TestViperSurgicalUpdate(t *testing.T) {
 
 	myViperEx := New("__")
 	myViperEx.SurgicalUpdate("nest__Eggs__0__Weight", 1234, allSettings)
+	myViperEx.SurgicalUpdate("nest__Eggs__0__Weight__", 1234, allSettings)
 	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeValues__1__Value", "abcd", allSettings)
+	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1", "abcd", allSettings)
 	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1__", "abcd", allSettings)
 	myViperEx.SurgicalUpdate("junk__A", "abcd", allSettings)
 	myViperEx.SurgicalUpdate("nest__junk", "abcd", allSettings)
@@ -165,19 +172,25 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	item = myViperEx.Find("nest__Eggs", allSettings)
 	assert.NotNil(t, item)
 
+	item = myViperEx.Find("nest__Eggs", allSettings)
+	assert.NotNil(t, item)
+
 	item = myViperEx.Find("nest__Eggs__", allSettings)
 	assert.Nil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1__", allSettings)
+	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1", allSettings)
 	assert.NotNil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__0__Junk__1__", allSettings)
+	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1__", allSettings)
 	assert.Nil(t, item)
 
-	item = myViperEx.Find("nest__junk__0__Junk__1__", allSettings)
+	item = myViperEx.Find("nest__Eggs__0__Junk__1", allSettings)
 	assert.Nil(t, item)
 
-	item = myViperEx.Find("nest__junk__0__", allSettings)
+	item = myViperEx.Find("nest__junk__0__Junk__1", allSettings)
+	assert.Nil(t, item)
+
+	item = myViperEx.Find("nest__junk__0", allSettings)
 	assert.Nil(t, item)
 
 }

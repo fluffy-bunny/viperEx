@@ -52,20 +52,25 @@ func (ve *ViperEx) Find(key string, src map[string]interface{}) interface{} {
 	fmt.Println(lastKey)
 	path = path[0 : len(path)-1]
 	if len(lastKey) == 0 {
-		// we are targeting an array that contains a primitive
-		deepestArray, idx := ve.deepSearchArray(src, path)
-		if deepestArray != nil && idx > -1 {
-			return deepestArray[idx]
-		}
 		return nil
-	} else {
-		deepestMap := ve.deepSearch(src, path)
-		if deepestMap != nil {
-			return deepestMap[lastKey]
-		}
-		return nil
-
 	}
+
+	deepestEntity := ve.deepSearch(src, path)
+	deepestMap, ok := deepestEntity.(map[string]interface{})
+	if ok {
+		return deepestMap[lastKey]
+	} else {
+		deepestArray, ok := deepestEntity.([]interface{})
+		if ok {
+			// lastKey has to be a num
+			idx, err := strconv.Atoi(lastKey)
+			if err == nil {
+				return deepestArray[idx]
+			}
+		}
+	}
+	return nil
+
 }
 
 // SurgicalUpdate will update the value if it exists
@@ -77,18 +82,25 @@ func (ve *ViperEx) SurgicalUpdate(key string, value interface{}, dst map[string]
 
 	path = path[0 : len(path)-1]
 	if len(lastKey) == 0 {
-		// we are targeting an array that contains a primitive
-		deepestArray, idx := ve.deepSearchArray(dst, path)
-		if deepestArray != nil && idx > -1 {
-			deepestArray[idx] = value
+		return
+	}
+
+	deepestEntity := ve.deepSearch(dst, path)
+	deepestMap, ok := deepestEntity.(map[string]interface{})
+	if ok {
+		// set innermost value
+		_, ok := deepestMap[lastKey]
+		if ok {
+			deepestMap[lastKey] = value
 		}
 	} else {
-		deepestMap := ve.deepSearch(dst, path)
-		if deepestMap != nil {
-			// set innermost value
-			_, ok := deepestMap[lastKey]
-			if ok {
-				deepestMap[lastKey] = value
+		// is this an array
+		deepestArray, ok := deepestEntity.([]interface{})
+		if ok {
+			// lastKey has to be a num
+			idx, err := strconv.Atoi(lastKey)
+			if err == nil {
+				deepestArray[idx] = value
 			}
 		}
 	}
@@ -104,90 +116,17 @@ func (ve *ViperEx) getPotentialEnvVariables() map[string]string {
 	}
 	return result
 }
-func (ve *ViperEx) deepSearchArray(m map[string]interface{}, path []string) ([]interface{}, int) {
-	var currentPath string
-	var stepArray bool = false
-	var currentArray []interface{}
-	var currentIdx int = -1
-	var err error
-	pathDepth := len(path)
-	for currentPathIdx, k := range path {
-		if len(currentPath) == 0 {
-			currentPath = k
-		} else {
-			currentPath = fmt.Sprintf("%v.%v", currentPath, k)
-		}
-		if stepArray {
-			currentIdx, err = strconv.Atoi(k)
-			if err != nil {
-				log.Error().Err(err).Msgf("No such path exists, must be an array idx: %v", currentPath)
-				return nil, -1
-			}
-			if len(currentArray) <= currentIdx {
-				log.Error().Msgf("No such path exists: %v", currentPath)
-				return nil, -1
-			}
-			m2 := currentArray[currentIdx]
-			stepArray = false
 
-			m3, ok := m2.(map[string]interface{})
-			if !ok {
-				// is this an array
-				m4, ok := m2.([]interface{})
-				if ok {
-					currentArray = m4
-					stepArray = true
-					m3 = nil
-				} else {
-					if currentPathIdx == pathDepth-1 {
-						// end of the line
-						continue
-					} else {
-						// we have a problem
-						log.Error().Msgf("No such path exists: %v", currentPath)
-						return nil, -1
-					}
-
-				}
-			}
-			// continue search from here
-			m = m3
-
-		} else {
-			m2, ok := m[k]
-			if !ok {
-				// intermediate key does not exist
-				return nil, -1
-			}
-			m3, ok := m2.(map[string]interface{})
-			if !ok {
-				// is this an array
-				m4, ok := m2.([]interface{})
-				if ok {
-					currentArray = m4
-					stepArray = true
-					m3 = nil
-				} else {
-					// intermediate key is a value
-					// => replace with a new map
-					m3 = make(map[string]interface{})
-					m[k] = m3
-
-				}
-			}
-			// continue search from here
-			m = m3
-
-		}
+func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) interface{} {
+	if len(path) == 0 {
+		return m
 	}
-	return currentArray, currentIdx
-}
-
-func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) map[string]interface{} {
 	var currentPath string
 	var stepArray bool = false
 	var currentArray []interface{}
+	var currentEntity interface{}
 	for _, k := range path {
+
 		if len(currentPath) == 0 {
 			currentPath = k
 		} else {
@@ -207,10 +146,10 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) map[strin
 			if !ok {
 				log.Error().Msgf("No such path exists: %v, error in mapping to a map[string]interface{}", currentPath)
 				return nil
-
 			}
 			// continue search from here
 			m = m3
+			currentEntity = m
 			stepArray = false // don't support arrays of arrays
 		} else {
 			m2, ok := m[k]
@@ -223,19 +162,23 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) map[strin
 				// is this an array
 				m4, ok := m2.([]interface{})
 				if ok {
+					// continue search from here
 					currentArray = m4
+					currentEntity = currentArray
 					stepArray = true
 					m3 = nil
 				} else {
 					// intermediate key is a value
 					return nil
-
 				}
+			} else {
+				// continue search from here
+				m = m3
+				currentEntity = m
 			}
-			// continue search from here
-			m = m3
 
 		}
 	}
-	return m
+
+	return currentEntity
 }
