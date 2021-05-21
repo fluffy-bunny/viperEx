@@ -51,7 +51,7 @@ I don't use AutomaticEnv from viper and instead do this at the end of my configu
   os.Setenv("APPLICATION_ENVIRONMENT", "Test")
   os.Setenv("nest__Eggs__1__Weight", "5555")
   os.Setenv("nest__Eggs__1__SomeValues__1__Value", "Heidi") // update an item in a struct
-  os.Setenv("nest__Eggs__1__SomeStrings__1__", "Zep") // SomeStrings is a []string, so this is the convention for directly modifying a primitive in an array
+  os.Setenv("nest__Eggs__1__SomeStrings__1", "Zep") // SomeStrings is a []string, so this is the convention for directly modifying a primitive in an array
 ```
 
 ```go
@@ -63,7 +63,7 @@ I don't use AutomaticEnv from viper and instead do this at the end of my configu
   // or individually
   myViperEx.SurgicalUpdate("nest__Eggs__0__Weight", 1234, allSettings)
   myViperEx.SurgicalUpdate("nest__Eggs__0__SomeValues__1__Value", "abcd", allSettings)
-  myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1__", "abcd", allSettings)
+  myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1", "abcd", allSettings)
 
   // you can use vipers unmarshal still
   // The original allSettings was pulled from viper and modified by viperEx
