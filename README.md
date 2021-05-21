@@ -71,3 +71,4 @@ I don't use AutomaticEnv from viper and instead do this at the end of my configu
   // The original allSettings was pulled from viper and modified by viperEx
   err = myViper.Unmarshal(&settings)
 ```
+
