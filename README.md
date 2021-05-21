@@ -1,6 +1,8 @@
 # viperEx  
 
 Filling the gaps from the awesome spf13/viper project
+There is an [spf13/viper--issue](https://github.com/spf13/viper/issues/1140) that reference this project.  
+
 
 # The Gaps  
 Asp.Net core allows for deep updating a configuration via an opinionated pathing ENV variable.  
