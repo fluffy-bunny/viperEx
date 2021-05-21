@@ -1,6 +1,6 @@
 # viperEx  
 
-Filling the gaps from the awesome spf13/viper project
+Filling the gaps from the awesome spf13/viper project.  
 There is an [spf13/viper--issue](https://github.com/spf13/viper/issues/1140) that reference this project.  
 
 
