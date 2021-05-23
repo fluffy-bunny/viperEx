@@ -112,11 +112,11 @@ func TestViperExEnvUpdate(t *testing.T) {
 	allSettings := myViper.AllSettings()
 	fmt.Println(PrettyJSON(allSettings))
 
-	myViperEx := New("__")
-	myViperEx.UpdateFromEnv(allSettings)
+	myViperEx := New("__", allSettings)
+	myViperEx.UpdateFromEnv()
 
 	settings := Settings{}
-	err = myViper.Unmarshal(&settings)
+	err = myViperEx.Unmarshal(&settings)
 	assert.NoError(t, err)
 	if err != nil {
 		panic(err)
@@ -137,19 +137,19 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	allSettings := myViper.AllSettings()
 	fmt.Println(PrettyJSON(allSettings))
 
-	myViperEx := New("__")
-	myViperEx.SurgicalUpdate("nest__Eggs__0__Weight", 1234, allSettings)
-	myViperEx.SurgicalUpdate("nest__Eggs__0__Weight__", 1234, allSettings)
-	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeValues__1__Value", "abcd", allSettings)
-	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1", "abcd", allSettings)
-	myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1__", "abcd", allSettings)
-	myViperEx.SurgicalUpdate("junk__A", "abcd", allSettings)
-	myViperEx.SurgicalUpdate("nest__junk", "abcd", allSettings)
+	myViperEx := New("__", allSettings)
+	myViperEx.UpdateDeepPath("nest__Eggs__0__Weight", 1234)
+	myViperEx.UpdateDeepPath("nest__Eggs__0__Weight__", 1234)
+	myViperEx.UpdateDeepPath("nest__Eggs__0__SomeValues__1__Value", "abcd")
+	myViperEx.UpdateDeepPath("nest__Eggs__0__SomeStrings__1", "abcd")
+	myViperEx.UpdateDeepPath("nest__Eggs__0__SomeStrings__1__", "abcd")
+	myViperEx.UpdateDeepPath("junk__A", "abcd")
+	myViperEx.UpdateDeepPath("nest__junk", "abcd")
 
 	fmt.Println(PrettyJSON(allSettings))
 
 	settings := Settings{}
-	err = myViper.Unmarshal(&settings)
+	err = myViperEx.Unmarshal(&settings)
 	assert.NoError(t, err)
 	if err != nil {
 		panic(err)
@@ -161,36 +161,36 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	_, ok := allSettings["junk"]
 	assert.False(t, ok)
 
-	name := myViperEx.Find("name", allSettings)
+	name := myViperEx.Find("name")
 	assert.NotNil(t, name)
 
-	nestJunk := myViperEx.Find("nest__junk", allSettings)
+	nestJunk := myViperEx.Find("nest__junk")
 	assert.Nil(t, nestJunk)
 
 	var item interface{}
 
-	item = myViperEx.Find("nest__Eggs", allSettings)
+	item = myViperEx.Find("nest__Eggs")
 	assert.NotNil(t, item)
 
-	item = myViperEx.Find("nest__Eggs", allSettings)
+	item = myViperEx.Find("nest__Eggs")
 	assert.NotNil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__", allSettings)
+	item = myViperEx.Find("nest__Eggs__")
 	assert.Nil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1", allSettings)
+	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1")
 	assert.NotNil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1__", allSettings)
+	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1__")
 	assert.Nil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__0__Junk__1", allSettings)
+	item = myViperEx.Find("nest__Eggs__0__Junk__1")
 	assert.Nil(t, item)
 
-	item = myViperEx.Find("nest__junk__0__Junk__1", allSettings)
+	item = myViperEx.Find("nest__junk__0__Junk__1")
 	assert.Nil(t, item)
 
-	item = myViperEx.Find("nest__junk__0", allSettings)
+	item = myViperEx.Find("nest__junk__0")
 	assert.Nil(t, item)
 
 }

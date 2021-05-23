@@ -13,12 +13,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 const defaultKeyDelimiter = "__"
 
-func New(keyDelimiter string) *ViperEx {
+func New(keyDelimiter string, allsettings map[string]interface{}) *ViperEx {
 	if len(keyDelimiter) == 0 {
 		return &ViperEx{
 			KeyDelimiter: defaultKeyDelimiter,
@@ -26,24 +28,26 @@ func New(keyDelimiter string) *ViperEx {
 	}
 	return &ViperEx{
 		KeyDelimiter: keyDelimiter,
+		AllSettings:  allsettings,
 	}
 }
 
 type ViperEx struct {
 	KeyDelimiter string
+	AllSettings  map[string]interface{}
 }
 
 // UpdateFromEnv will find potential ENV candidates to merge in
-func (ve *ViperEx) UpdateFromEnv(dst map[string]interface{}) error {
+func (ve *ViperEx) UpdateFromEnv() error {
 	potential := ve.getPotentialEnvVariables()
 	for key, value := range potential {
-		ve.SurgicalUpdate(key, value, dst)
+		ve.UpdateDeepPath(key, value)
 	}
 	return nil
 }
 
 // Find will return the interface to the data if it exists
-func (ve *ViperEx) Find(key string, src map[string]interface{}) interface{} {
+func (ve *ViperEx) Find(key string) interface{} {
 	lcaseKey := strings.ToLower(key)
 	path := strings.Split(lcaseKey, ve.KeyDelimiter)
 
@@ -55,7 +59,7 @@ func (ve *ViperEx) Find(key string, src map[string]interface{}) interface{} {
 		return nil
 	}
 
-	deepestEntity := ve.deepSearch(src, path)
+	deepestEntity := ve.deepSearch(ve.AllSettings, path)
 	deepestMap, ok := deepestEntity.(map[string]interface{})
 	if ok {
 		return deepestMap[lastKey]
@@ -73,8 +77,8 @@ func (ve *ViperEx) Find(key string, src map[string]interface{}) interface{} {
 
 }
 
-// SurgicalUpdate will update the value if it exists
-func (ve *ViperEx) SurgicalUpdate(key string, value interface{}, dst map[string]interface{}) {
+// UpdateDeepPath will update the value if it exists
+func (ve *ViperEx) UpdateDeepPath(key string, value interface{}) {
 	lcaseKey := strings.ToLower(key)
 	path := strings.Split(lcaseKey, ve.KeyDelimiter)
 
@@ -85,7 +89,7 @@ func (ve *ViperEx) SurgicalUpdate(key string, value interface{}, dst map[string]
 		return
 	}
 
-	deepestEntity := ve.deepSearch(dst, path)
+	deepestEntity := ve.deepSearch(ve.AllSettings, path)
 	deepestMap, ok := deepestEntity.(map[string]interface{})
 	if ok {
 		// set innermost value
@@ -181,4 +185,37 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) interface
 	}
 
 	return currentEntity
+}
+
+// code copied from the viper project
+
+// defaultDecoderConfig returns default mapsstructure.DecoderConfig with suppot
+// of time.Duration values & string slices
+func defaultDecoderConfig(output interface{}, opts ...viper.DecoderConfigOption) *mapstructure.DecoderConfig {
+	c := &mapstructure.DecoderConfig{
+		Metadata:         nil,
+		Result:           output,
+		WeaklyTypedInput: true,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+		),
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
+}
+
+func (ve *ViperEx) Unmarshal(rawVal interface{}, opts ...viper.DecoderConfigOption) error {
+	return decode(ve.AllSettings, defaultDecoderConfig(rawVal, opts...))
+}
+
+// A wrapper around mapstructure.Decode that mimics the WeakDecode functionality
+func decode(input interface{}, config *mapstructure.DecoderConfig) error {
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(input)
 }
