@@ -64,9 +64,9 @@ Here it accounts for arrays, where Eggs is an array.  The Egg stuct also contain
   myViperEx.UpdateFromEnv()
 
   // or individually
-  myViperEx.SurgicalUpdate("nest__Eggs__0__Weight", 1234, allSettings)
-  myViperEx.SurgicalUpdate("nest__Eggs__0__SomeValues__1__Value", "abcd", allSettings)
-  myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1", "abcd", allSettings)
+  myViperEx.UpdateDeepPath("nest__Eggs__0__Weight", 1234)
+  myViperEx.UpdateDeepPath("nest__Eggs__0__SomeValues__1__Value", "abcd")
+  myViperEx.UpdateDeepPath("nest__Eggs__0__SomeStrings__1", "abcd")
 
   // since we took ownership of the all settings we need to use our own Unmarshal
   err = myViperEx.Unmarshal(&settings)
