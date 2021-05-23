@@ -55,7 +55,7 @@ const keyDelim = "__"
 func ReadAppsettings(rootPath string) (*viper.Viper, error) {
 	var err error
 	environment := os.Getenv("APPLICATION_ENVIRONMENT")
-	myViper := viper.NewWithOptions(viper.KeyDelimiter("__"))
+	myViper := viper.NewWithOptions(viper.KeyDelimiter(keyDelim))
 	// Environment Variables override everything.
 	myViper.AutomaticEnv()
 	myViper.SetConfigType("json")
@@ -104,7 +104,7 @@ func TestViperExEnvUpdate(t *testing.T) {
 	fmt.Println(PrettyJSON(allSettings))
 
 	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
-		ve.KeyDelimiter = "__"
+		ve.KeyDelimiter = keyDelim
 		return nil
 	})
 	envs := map[string]string{
@@ -119,7 +119,11 @@ func TestViperExEnvUpdate(t *testing.T) {
 	}
 	os.Setenv("APPLICATION_ENVIRONMENT", "Test")
 
-	myViperEx.UpdateFromEnv()
+	err = myViperEx.UpdateFromEnv()
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 	for k := range envs {
 		os.Remove(k)
 	}
