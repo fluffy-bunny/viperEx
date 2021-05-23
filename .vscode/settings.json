@@ -1,0 +1,63 @@
+{
+    // Uncomment the next two lines for RutOS builds
+    //"go.toolsEnvVars": {"GOOS":"linux", "GOARCH": "mips", "GOMIPS": "softfloat"},
+    //"go.buildFlags": ["-ldflags=-s -w"]
+    "go.autocompleteUnimportedPackages": true,
+    "go.docsTool": "gogetdoc",
+    "go.formatTool": "goimports",
+    "go.vetFlags": [
+        "-composites=false"
+    ],
+    "go.testFlags": ["-race"],
+    "go.lintTool": "revive",
+    "go.lintFlags": [
+        "-config=${workspaceFolder}\\revive.toml"
+    ],
+    "go.useCodeSnippetsOnFunctionSuggest": true,
+    "go.useCodeSnippetsOnFunctionSuggestWithoutType": true,
+
+    "go.useLanguageServer": true,
+    "go.vetOnSave": "package",
+    "[go]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true,
+        },
+        // Optional: Disable snippets, as they conflict with completion ranking.
+        "editor.snippetSuggestions": "none",
+        "files.eol": "\n"
+    },
+    "[go.mod]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true,
+        },
+    },
+    "gopls": {
+        //"completeUnimported": true,
+        // Add parameter placeholders when completing a function.
+        "usePlaceholders": true,
+
+        "completionDocumentation": true,
+        "hoverKind": "SynopsisDocumentation",
+
+        // If true, enable additional analyses with staticcheck.
+        // Warning: This will significantly increase memory usage.
+        "staticcheck": false,
+    },
+    "go.languageServerExperimentalFeatures": {
+        "format": true,
+        "autoComplete": true,
+        "rename": true,
+        "goToDefinition": true,
+        "hover": true,
+        "signatureHelp": true,
+        "goToTypeDefinition": true,
+        "goToImplementation": true,
+        "documentSymbols": true,
+        "workspaceSymbols": true,
+        "findReferences": true,
+        "diagnostics": true,
+        "documentLink": true
+    }
+}

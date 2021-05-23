@@ -20,8 +20,8 @@ import (
 
 const defaultKeyDelimiter = "."
 
+// New creates a new ViperEx instance with optional options
 func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*ViperEx, error) {
-
 	viperEx := &ViperEx{
 		KeyDelimiter: defaultKeyDelimiter,
 		AllSettings:  allsettings,
@@ -36,6 +36,7 @@ func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*
 	return viperEx, nil
 }
 
+//ViperEx type
 type ViperEx struct {
 	KeyDelimiter string
 	AllSettings  map[string]interface{}
@@ -67,18 +68,18 @@ func (ve *ViperEx) Find(key string) interface{} {
 	deepestMap, ok := deepestEntity.(map[string]interface{})
 	if ok {
 		return deepestMap[lastKey]
-	} else {
-		deepestArray, ok := deepestEntity.([]interface{})
-		if ok {
-			// lastKey has to be a num
-			idx, err := strconv.Atoi(lastKey)
-			if err == nil {
-				return deepestArray[idx]
-			}
+	}
+
+	deepestArray, ok := deepestEntity.([]interface{})
+	if ok {
+		// lastKey has to be a num
+		idx, err := strconv.Atoi(lastKey)
+		if err == nil {
+			return deepestArray[idx]
 		}
 	}
-	return nil
 
+	return nil
 }
 
 // UpdateDeepPath will update the value if it exists
@@ -130,11 +131,10 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) interface
 		return m
 	}
 	var currentPath string
-	var stepArray bool = false
+	var stepArray = false
 	var currentArray []interface{}
 	var currentEntity interface{}
 	for _, k := range path {
-
 		if len(currentPath) == 0 {
 			currentPath = k
 		} else {
@@ -184,7 +184,6 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) interface
 				m = m3
 				currentEntity = m
 			}
-
 		}
 	}
 
@@ -211,6 +210,7 @@ func defaultDecoderConfig(output interface{}, opts ...viper.DecoderConfigOption)
 	return c
 }
 
+// Unmarshal to struct
 func (ve *ViperEx) Unmarshal(rawVal interface{}, opts ...viper.DecoderConfigOption) error {
 	return decode(ve.AllSettings, defaultDecoderConfig(rawVal, opts...))
 }

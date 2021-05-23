@@ -213,7 +213,6 @@ func TestViperSurgicalUpdate(t *testing.T) {
 
 	item = myViperEx.Find("nest__junk__0")
 	assert.Nil(t, item)
-
 }
 
 // PrettyJSON to string
