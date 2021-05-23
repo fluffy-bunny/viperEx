@@ -18,18 +18,22 @@ import (
 	"github.com/spf13/viper"
 )
 
-const defaultKeyDelimiter = "__"
+const defaultKeyDelimiter = "."
 
-func New(keyDelimiter string, allsettings map[string]interface{}) *ViperEx {
-	if len(keyDelimiter) == 0 {
-		return &ViperEx{
-			KeyDelimiter: defaultKeyDelimiter,
-		}
-	}
-	return &ViperEx{
-		KeyDelimiter: keyDelimiter,
+func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*ViperEx, error) {
+
+	viperEx := &ViperEx{
+		KeyDelimiter: defaultKeyDelimiter,
 		AllSettings:  allsettings,
 	}
+	var err error
+	for _, option := range options {
+		err = option(viperEx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return viperEx, nil
 }
 
 type ViperEx struct {

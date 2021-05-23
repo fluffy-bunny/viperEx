@@ -47,16 +47,7 @@ type Settings struct {
 }
 
 func init() {
-	os.Setenv("APPLICATION_ENVIRONMENT", "Test")
-	os.Setenv("nest__Eggs__1__Weight", "5555")
-	os.Setenv("nest__Eggs__1__SomeValues__1__Value", "Heidi")
-	os.Setenv("nest__Eggs__1__SomeStrings__1", "Zep")
 	chdirToTestFolder()
-	os.Remove("APPLICATION_ENVIRONMENT")
-	os.Remove("nest__Eggs__1__Weight")
-	os.Remove("nest__Eggs__1__SomeValues__1__Value")
-	os.Remove("nest__Eggs__1__SomeStrings__1")
-
 }
 
 const keyDelim = "__"
@@ -112,8 +103,26 @@ func TestViperExEnvUpdate(t *testing.T) {
 	allSettings := myViper.AllSettings()
 	fmt.Println(PrettyJSON(allSettings))
 
-	myViperEx := New("__", allSettings)
+	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
+		ve.KeyDelimiter = "__"
+		return nil
+	})
+	envs := map[string]string{
+
+		"APPLICATION_ENVIRONMENT":             "Test",
+		"nest__Eggs__1__Weight":               "5555",
+		"nest__Eggs__1__SomeValues__1__Value": "Heidi",
+		"nest__Eggs__1__SomeStrings__1":       "Zep",
+	}
+	for k, v := range envs {
+		os.Setenv(k, v)
+	}
+	os.Setenv("APPLICATION_ENVIRONMENT", "Test")
+
 	myViperEx.UpdateFromEnv()
+	for k := range envs {
+		os.Remove(k)
+	}
 
 	settings := Settings{}
 	err = myViperEx.Unmarshal(&settings)
@@ -137,14 +146,22 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	allSettings := myViper.AllSettings()
 	fmt.Println(PrettyJSON(allSettings))
 
-	myViperEx := New("__", allSettings)
-	myViperEx.UpdateDeepPath("nest__Eggs__0__Weight", 1234)
-	myViperEx.UpdateDeepPath("nest__Eggs__0__Weight__", 1234)
-	myViperEx.UpdateDeepPath("nest__Eggs__0__SomeValues__1__Value", "abcd")
-	myViperEx.UpdateDeepPath("nest__Eggs__0__SomeStrings__1", "abcd")
-	myViperEx.UpdateDeepPath("nest__Eggs__0__SomeStrings__1__", "abcd")
-	myViperEx.UpdateDeepPath("junk__A", "abcd")
-	myViperEx.UpdateDeepPath("nest__junk", "abcd")
+	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
+		ve.KeyDelimiter = "__"
+		return nil
+	})
+	envs := map[string]interface{}{
+		"nest__Eggs__0__Weight":               1234,
+		"nest__Eggs__0__Weight__":             1234,
+		"nest__Eggs__0__SomeValues__1__Value": "abcd",
+		"nest__Eggs__0__SomeStrings__1":       "abcd",
+		"nest__Eggs__0__SomeStrings__1__":     "abcd",
+		"junk__A":                             "abcd",
+		"nest__junk":                          "abcd",
+	}
+	for k, v := range envs {
+		myViperEx.UpdateDeepPath(k, v)
+	}
 
 	fmt.Println(PrettyJSON(allSettings))
 

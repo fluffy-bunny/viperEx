@@ -59,16 +59,18 @@ I don't use AutomaticEnv from viper and instead do this at the end of my configu
 ```go
   allSettings := myViper.AllSettings() // normal viper stuff
 
-  myViperEx := viperEx.New("__")
-  myViperEx.UpdateFromEnv(allSettings)
+  myViperEx, err := New(allSettings, func(ve *ViperEx) error {
+		ve.KeyDelimiter = "__"
+		return nil
+  })
+  myViperEx.UpdateFromEnv()
 
   // or individually
   myViperEx.SurgicalUpdate("nest__Eggs__0__Weight", 1234, allSettings)
   myViperEx.SurgicalUpdate("nest__Eggs__0__SomeValues__1__Value", "abcd", allSettings)
   myViperEx.SurgicalUpdate("nest__Eggs__0__SomeStrings__1", "abcd", allSettings)
 
-  // you can use vipers unmarshal still
-  // The original allSettings was pulled from viper and modified by viperEx
-  err = myViper.Unmarshal(&settings)
+  // since we took ownership of the all settings we need to use our own Unmarshal
+  err = myViperEx.Unmarshal(&settings)
 ```
 
