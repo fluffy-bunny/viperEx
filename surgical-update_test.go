@@ -27,6 +27,7 @@ type NestedMap struct {
 type SettingsWithNestedMap struct {
 	Name      string
 	NestedMap *NestedMap
+	MasterEgg Egg
 }
 type Nest struct {
 	Name       string
@@ -48,6 +49,7 @@ type Egg struct {
 	Weight      int32
 	SomeValues  []ValueContainer
 	SomeStrings []string
+	Name        string
 }
 type Settings struct {
 	Name string
@@ -115,12 +117,14 @@ func TestViperExEnvUpdate(t *testing.T) {
 		ve.KeyDelimiter = keyDelim
 		return nil
 	})
+	expectedURI := "https://www.blah.com/?ssl=true&a=b&c=d"
 	envs := map[string]string{
 
 		"APPLICATION_ENVIRONMENT":             "Test",
 		"nest__Eggs__1__Weight":               "5555",
 		"nest__Eggs__1__SomeValues__1__Value": "Heidi",
 		"nest__Eggs__1__SomeStrings__1":       "Zep",
+		"nest__masteregg__name":               expectedURI,
 	}
 	for k, v := range envs {
 		os.Setenv(k, v)
@@ -128,6 +132,7 @@ func TestViperExEnvUpdate(t *testing.T) {
 	os.Setenv("APPLICATION_ENVIRONMENT", "Test")
 
 	err = myViperEx.UpdateFromEnv()
+	fmt.Println(PrettyJSON(allSettings))
 	assert.NoError(t, err)
 	if err != nil {
 		panic(err)
@@ -138,15 +143,53 @@ func TestViperExEnvUpdate(t *testing.T) {
 
 	settings := Settings{}
 	err = myViperEx.Unmarshal(&settings)
+	fmt.Println(PrettyJSON(allSettings))
 	assert.NoError(t, err)
 	if err != nil {
 		panic(err)
 	}
 
+	assert.Equal(t, expectedURI, settings.Nest.MasterEgg.Name)
+	assert.Equal(t, "straw", settings.Nest.Name)
 	assert.Equal(t, "Heidi", settings.Nest.Eggs[1].SomeValues[1].Value)
 	assert.Equal(t, "Zep", settings.Nest.Eggs[1].SomeStrings[1])
 	assert.Equal(t, int32(5555), settings.Nest.Eggs[1].Weight)
 }
+func TestViperSurgicalUpdate_URIWithArgs(t *testing.T) {
+	configPath := getConfigPath()
+	myViper, err := ReadAppsettings(configPath)
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+	allSettings := myViper.AllSettings()
+	fmt.Println(PrettyJSON(allSettings))
+	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
+		ve.KeyDelimiter = "__"
+		return nil
+	})
+	expectedURI := "https://www.blah.com/?ssl=true&a=b&c=d"
+	envs := map[string]interface{}{
+		"name": expectedURI,
+		"nestedMap__Eggs__bob__SomeValues__1__Value": expectedURI,
+		"MasterEgg__name": expectedURI,
+	}
+	for k, v := range envs {
+		myViperEx.UpdateDeepPath(k, v)
+	}
+	fmt.Println(PrettyJSON(allSettings))
+
+	settings := SettingsWithNestedMap{}
+	err = myViperEx.Unmarshal(&settings)
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+	assert.Equal(t, expectedURI, settings.Name)
+	assert.Equal(t, expectedURI, settings.NestedMap.Eggs["bob"].SomeValues[1].Value)
+	assert.Equal(t, expectedURI, settings.MasterEgg.Name)
+}
+
 func TestViperSurgicalUpdate_NestedMap(t *testing.T) {
 	configPath := getConfigPath()
 	myViper, err := ReadAppsettings(configPath)

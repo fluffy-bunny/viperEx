@@ -118,9 +118,11 @@ func (ve *ViperEx) getPotentialEnvVariables() map[string]string {
 	var result map[string]string
 	result = make(map[string]string)
 	for _, element := range os.Environ() {
-		variable := strings.Split(element, "=")
-		if strings.Contains(variable[0], ve.KeyDelimiter) {
-			result[variable[0]] = variable[1]
+		var index = strings.Index(element, "=")
+		key := element[0:index]
+		value := element[index+1:]
+		if strings.Contains(key, ve.KeyDelimiter) {
+			result[key] = value
 		}
 	}
 	return result
