@@ -32,6 +32,7 @@ type Nest struct {
 	Name       string
 	CountInt   int
 	CountInt16 int16
+	MasterEgg  Egg
 	Eggs       []Egg
 }
 type ValueContainer struct {
@@ -162,6 +163,7 @@ func TestViperSurgicalUpdate_NestedMap(t *testing.T) {
 	})
 
 	envs := map[string]interface{}{
+		"name":                                         "bowie",
 		"nestedMap__Eggs__bob__Weight":                 1234,
 		"nestedMap__Eggs__bob__Weight__":               1234,
 		"nestedMap__Eggs__bob__SomeValues__1__Value":   "abcd",
@@ -182,7 +184,7 @@ func TestViperSurgicalUpdate_NestedMap(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	assert.Equal(t, "bob", settings.Name)
+	assert.Equal(t, "bowie", settings.Name)
 	assert.Equal(t, int32(1234), settings.NestedMap.Eggs["bob"].Weight)
 	assert.Equal(t, "abcd", settings.NestedMap.Eggs["bob"].SomeValues[1].Value)
 	assert.Equal(t, "abcd", settings.NestedMap.Eggs["bob"].SomeStrings[1])
@@ -213,6 +215,7 @@ func TestViperSurgicalUpdate(t *testing.T) {
 		return nil
 	})
 	envs := map[string]interface{}{
+		"nest__MasterEgg__Weight":             1,
 		"nest__Eggs__0__Weight":               1234,
 		"nest__Eggs__0__Weight__":             1234,
 		"nest__Eggs__0__SomeValues__1__Value": "abcd",
@@ -234,6 +237,7 @@ func TestViperSurgicalUpdate(t *testing.T) {
 		panic(err)
 	}
 	assert.Equal(t, "bob", settings.Name)
+	assert.Equal(t, int32(1), settings.Nest.MasterEgg.Weight)
 	assert.Equal(t, int32(1234), settings.Nest.Eggs[0].Weight)
 	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeValues[1].Value)
 	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeStrings[1])
