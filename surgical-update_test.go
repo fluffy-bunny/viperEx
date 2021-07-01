@@ -21,6 +21,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type NestedMap struct {
+	Eggs map[string]Egg
+}
+type SettingsWithNestedMap struct {
+	Name      string
+	NestedMap *NestedMap
+}
 type Nest struct {
 	Name       string
 	CountInt   int
@@ -139,7 +146,58 @@ func TestViperExEnvUpdate(t *testing.T) {
 	assert.Equal(t, "Zep", settings.Nest.Eggs[1].SomeStrings[1])
 	assert.Equal(t, int32(5555), settings.Nest.Eggs[1].Weight)
 }
+func TestViperSurgicalUpdate_NestedMap(t *testing.T) {
+	configPath := getConfigPath()
+	myViper, err := ReadAppsettings(configPath)
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+	allSettings := myViper.AllSettings()
+	fmt.Println(PrettyJSON(allSettings))
 
+	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
+		ve.KeyDelimiter = "__"
+		return nil
+	})
+
+	envs := map[string]interface{}{
+		"nestedMap__Eggs__bob__Weight":                 1234,
+		"nestedMap__Eggs__bob__Weight__":               1234,
+		"nestedMap__Eggs__bob__SomeValues__1__Value":   "abcd",
+		"nestedMap__Eggs__bob__SomeStrings__1":         "abcd",
+		"nestedMap__Eggs__bob__SomeStrings__1__":       "abcd",
+		"nestedMap__Eggs__junk__SomeStrings__1__":      "abcd",
+		"nestedMap__Eggs__junk__SomeStrings__1__Value": "abcd",
+	}
+	for k, v := range envs {
+		myViperEx.UpdateDeepPath(k, v)
+	}
+
+	fmt.Println(PrettyJSON(allSettings))
+
+	settings := SettingsWithNestedMap{}
+	err = myViperEx.Unmarshal(&settings)
+	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+	assert.Equal(t, "bob", settings.Name)
+	assert.Equal(t, int32(1234), settings.NestedMap.Eggs["bob"].Weight)
+	assert.Equal(t, "abcd", settings.NestedMap.Eggs["bob"].SomeValues[1].Value)
+	assert.Equal(t, "abcd", settings.NestedMap.Eggs["bob"].SomeStrings[1])
+	_, ok := allSettings["junk"]
+	assert.False(t, ok)
+
+	name := myViperEx.Find("name")
+	assert.NotNil(t, name)
+
+	nestJunk := myViperEx.Find("nestedMap__Eggs__junk")
+	assert.Nil(t, nestJunk)
+
+	nestJunk = myViperEx.Find("nestedMap__Eggs__junk__SomeStrings__1__Value")
+	assert.Nil(t, nestJunk)
+}
 func TestViperSurgicalUpdate(t *testing.T) {
 	configPath := getConfigPath()
 	myViper, err := ReadAppsettings(configPath)

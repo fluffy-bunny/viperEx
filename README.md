@@ -16,6 +16,11 @@ type Nest struct {
   CountInt16 int16
   Eggs       []Egg
 }
+
+type NestedMap struct {
+  Eggs map[string]Egg
+}
+
 type ValueContainer struct {
   Value interface{}
 }
@@ -34,10 +39,18 @@ type Settings struct {
   Name string
   Nest *Nest
 }
+
+type SettingsWithNestedMap struct {
+  Name      string
+  NestedMap *NestedMap
+}
+
 ```
 
 I would like to surgically update a value deep in the tree.  
-I want it to dig down and enter into the right array object and keep going.  
+I want it to dig down and enter into the right array or map object and keep going.  
+
+## Arrays  
 
 Here I would like to change value of ```Value```, which is in the 2nd object in the ```SomeValues``` array, which is in an ```Egg``` object which is in the 2nd object in the ```Eggs``` array, which is inside or the ```nest``` object.  Phewww!  
 
@@ -71,3 +84,5 @@ Here it accounts for arrays, where Eggs is an array.  The Egg stuct also contain
   // since we took ownership of the all settings we need to use our own Unmarshal
   err = myViperEx.Unmarshal(&settings)
 ```
+
+## Maps  
