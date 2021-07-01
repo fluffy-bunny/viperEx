@@ -86,3 +86,19 @@ Here it accounts for arrays, where Eggs is an array.  The Egg stuct also contain
 ```
 
 ## Maps  
+
+Maps are very similar to arrys, except that a ```string``` is used instead of a ```num``` for pathing.
+
+### Array pathing  
+
+```bash
+nest__Eggs__1__SomeValues__1__Value=3
+```  
+
+vs.
+
+### Map pathing  
+
+```bash
+nest__Eggs__bob__SomeValues__1__Value=3
+```  
