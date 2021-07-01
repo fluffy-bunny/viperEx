@@ -5,6 +5,8 @@ on:
     branches: [ main ]
     paths-ignore:
       - 'README.md'
+      - 'docs/**'
+      - '.github/dependabot.yml'
   pull_request:
     branches: [ main ]
 
@@ -44,3 +46,21 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+      
+    - name: Generate coverage report
+      run: go test -cover -coverprofile="c.out" ./... && go tool cover -html="c.out" -o coverage.html
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v2
+      with:
+        name: coverage-report
+        path: coverage.html
+      
+    - name: Create a GitHub release
+      uses: actions/create-release@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          release_name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
