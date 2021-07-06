@@ -20,11 +20,25 @@ import (
 
 const defaultKeyDelimiter = "."
 
+func newChangeAllKeysToLowerCase(m map[string]interface{}) map[string]interface{} {
+	var lcMap = make(map[string]interface{})
+	for key, value := range m {
+		vMap, ok := value.(map[string]interface{})
+		if ok {
+			// if the current value is a map[string]interface{}, keep going
+			lcMap[strings.ToLower(key)] = newChangeAllKeysToLowerCase(vMap)
+		} else {
+			lcMap[strings.ToLower(key)] = value
+		}
+	}
+	return lcMap
+}
+
 // New creates a new ViperEx instance with optional options
 func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*ViperEx, error) {
 	viperEx := &ViperEx{
 		KeyDelimiter: defaultKeyDelimiter,
-		AllSettings:  allsettings,
+		AllSettings:  newChangeAllKeysToLowerCase(allsettings),
 	}
 	var err error
 	for _, option := range options {
