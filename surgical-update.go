@@ -123,7 +123,9 @@ func (ve *ViperEx) UpdateDeepPath(key string, value interface{}) {
 			// lastKey has to be a num
 			idx, err := strconv.Atoi(lastKey)
 			if err == nil {
-				deepestArray[idx] = value
+				if idx < len(deepestArray) && idx >= 0 {
+					deepestArray[idx] = value
+				}
 			}
 		}
 	}

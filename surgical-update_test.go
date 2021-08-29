@@ -35,6 +35,7 @@ type Nest struct {
 	CountInt16 int16
 	MasterEgg  Egg
 	Eggs       []Egg
+	Tags       []string
 }
 type ValueContainer struct {
 	Value interface{}
@@ -266,6 +267,8 @@ func TestViperSurgicalUpdate(t *testing.T) {
 		"nest__Eggs__0__SomeStrings__1__":     "abcd",
 		"junk__A":                             "abcd",
 		"nest__junk":                          "abcd",
+		"nest__tags__0":                       "abcd",
+		"nest__tags__1":                       "abcd",
 	}
 	for k, v := range envs {
 		myViperEx.UpdateDeepPath(k, v)
@@ -284,6 +287,7 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	assert.Equal(t, int32(1234), settings.Nest.Eggs[0].Weight)
 	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeValues[1].Value)
 	assert.Equal(t, "abcd", settings.Nest.Eggs[0].SomeStrings[1])
+	assert.Equal(t, "abcd", settings.Nest.Tags[0])
 	_, ok := allSettings["junk"]
 	assert.False(t, ok)
 
