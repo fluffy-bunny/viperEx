@@ -53,8 +53,9 @@ type Egg struct {
 	Name        string
 }
 type Settings struct {
-	Name string
-	Nest *Nest
+	Name        string
+	Nest        *Nest
+	SomeStrings []string
 }
 
 func init() {
@@ -269,6 +270,7 @@ func TestViperSurgicalUpdate(t *testing.T) {
 		"nest__junk":                          "abcd",
 		"nest__tags__0":                       "abcd",
 		"nest__tags__1":                       "abcd",
+		"somestrings__0":                      "abcd",
 	}
 	for k, v := range envs {
 		myViperEx.UpdateDeepPath(k, v)
@@ -282,6 +284,7 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	assert.Equal(t, "abcd", settings.SomeStrings[0])
 	assert.Equal(t, "bob", settings.Name)
 	assert.Equal(t, int32(1), settings.Nest.MasterEgg.Weight)
 	assert.Equal(t, int32(1234), settings.Nest.Eggs[0].Weight)
