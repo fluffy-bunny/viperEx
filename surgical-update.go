@@ -36,6 +36,8 @@ func newChangeAllKeysToLowerCase(m map[string]interface{}) map[string]interface{
 
 // New creates a new ViperEx instance with optional options
 func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*ViperEx, error) {
+	changeAllKeysToLowerCase(allsettings)
+	changeStringArrayToInterfaceArray(allsettings)
 	viperEx := &ViperEx{
 		KeyDelimiter: defaultKeyDelimiter,
 		AllSettings:  newChangeAllKeysToLowerCase(allsettings),
@@ -240,4 +242,50 @@ func decode(input interface{}, config *mapstructure.DecoderConfig) error {
 		return err
 	}
 	return decoder.Decode(input)
+}
+
+func changeStringArrayToInterfaceArray(m map[string]interface{}) {
+	var currentKeys []string
+	for key := range m {
+		currentKeys = append(currentKeys, key)
+	}
+
+	for _, key := range currentKeys {
+		vv, ok := m[key].([]string)
+		if ok {
+			m2 := make([]interface{}, 0)
+			for idx := range vv {
+				v := vv[idx]
+				m2 = append(m2, &v)
+			}
+			m[key] = m2
+		} else {
+			v2, ok := m[key].(map[string]interface{})
+			if ok {
+				changeStringArrayToInterfaceArray(v2)
+			}
+		}
+	}
+}
+
+func changeAllKeysToLowerCase(m map[string]interface{}) {
+	var lcMap = make(map[string]interface{})
+	var currentKeys []string
+	for key, value := range m {
+		currentKeys = append(currentKeys, key)
+		lcMap[strings.ToLower(key)] = value
+	}
+	// delete original values
+	for _, k := range currentKeys {
+		delete(m, k)
+	}
+	// put the lowercase ones in the original map
+	for key, value := range lcMap {
+		m[key] = value
+		vMap, ok := value.(map[string]interface{})
+		if ok {
+			// if the current value is a map[string]interface{}, keep going
+			changeAllKeysToLowerCase(vMap)
+		}
+	}
 }
