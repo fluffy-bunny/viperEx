@@ -38,7 +38,7 @@ type Nest struct {
 	Tags       []string
 }
 type ValueContainer struct {
-	Value interface{}
+	Value interface{} `json:"value"`
 }
 
 func (vc *ValueContainer) GetString() (string, bool) {
@@ -47,10 +47,10 @@ func (vc *ValueContainer) GetString() (string, bool) {
 }
 
 type Egg struct {
-	Weight      int32
-	SomeValues  []ValueContainer
-	SomeStrings []string
-	Name        string
+	Weight      int32            `json:"weight"`
+	SomeValues  []ValueContainer `json:"somevalues"`
+	SomeStrings []string         `json:"somestrings"`
+	Name        string           `json:"name"`
 }
 type Settings struct {
 	Name        string
