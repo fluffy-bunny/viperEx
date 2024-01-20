@@ -10,6 +10,7 @@ package viperEx
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -21,17 +22,26 @@ import (
 const defaultKeyDelimiter = "."
 
 func newChangeAllKeysToLowerCase(m map[string]interface{}) map[string]interface{} {
-	var lcMap = make(map[string]interface{})
-	for key, value := range m {
-		vMap, ok := value.(map[string]interface{})
-		if ok {
-			// if the current value is a map[string]interface{}, keep going
-			lcMap[strings.ToLower(key)] = newChangeAllKeysToLowerCase(vMap)
-		} else {
-			lcMap[strings.ToLower(key)] = value
+	newMap := make(map[string]interface{})
+	for k, v := range m {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			newMap[strings.ToLower(k)] = newChangeAllKeysToLowerCase(val)
+		case []interface{}:
+			var newSlice []interface{}
+			for _, item := range val {
+				if reflect.TypeOf(item).Kind() == reflect.Map {
+					newSlice = append(newSlice, newChangeAllKeysToLowerCase(item.(map[string]interface{})))
+				} else {
+					newSlice = append(newSlice, item)
+				}
+			}
+			newMap[strings.ToLower(k)] = newSlice
+		default:
+			newMap[strings.ToLower(k)] = val
 		}
 	}
-	return lcMap
+	return newMap
 }
 
 // New creates a new ViperEx instance with optional options
@@ -52,7 +62,7 @@ func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*
 	return viperEx, nil
 }
 
-//ViperEx type
+// ViperEx type
 type ViperEx struct {
 	KeyDelimiter string
 	AllSettings  map[string]interface{}
