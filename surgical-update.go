@@ -48,6 +48,7 @@ func newChangeAllKeysToLowerCase(m map[string]interface{}) map[string]interface{
 func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*ViperEx, error) {
 	changeAllKeysToLowerCase(allsettings)
 	changeStringArrayToInterfaceArray(allsettings)
+	changeStringMapStringToStringMapInterface(allsettings)
 	viperEx := &ViperEx{
 		KeyDelimiter: defaultKeyDelimiter,
 		AllSettings:  newChangeAllKeysToLowerCase(allsettings),
@@ -253,7 +254,27 @@ func decode(input interface{}, config *mapstructure.DecoderConfig) error {
 	}
 	return decoder.Decode(input)
 }
-
+func changeStringMapStringToStringMapInterface(m map[string]interface{}) {
+	var currentKeys []string
+	for key := range m {
+		currentKeys = append(currentKeys, key)
+	}
+	for _, key := range currentKeys {
+		vv, ok := m[key].(map[string]string)
+		if ok {
+			m2 := make(map[string]interface{})
+			for k, v := range vv {
+				m2[k] = v
+			}
+			m[key] = m2
+		} else {
+			v2, ok := m[key].(map[string]interface{})
+			if ok {
+				changeStringMapStringToStringMapInterface(v2)
+			}
+		}
+	}
+}
 func changeStringArrayToInterfaceArray(m map[string]interface{}) {
 	var currentKeys []string
 	for key := range m {
