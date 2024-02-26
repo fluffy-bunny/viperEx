@@ -44,6 +44,22 @@ func newChangeAllKeysToLowerCase(m map[string]interface{}) map[string]interface{
 	return newMap
 }
 
+// WithEnvPrefix sets the prefix for environment variables
+func WithEnvPrefix(envPrefix string) func(*ViperEx) error {
+	return func(v *ViperEx) error {
+		v.EnvPrefix = envPrefix + "_"
+		return nil
+	}
+}
+
+// WithDelimiter sets the delimiter for keys
+func WithDelimiter(delimiter string) func(*ViperEx) error {
+	return func(v *ViperEx) error {
+		v.KeyDelimiter = delimiter
+		return nil
+	}
+}
+
 // New creates a new ViperEx instance with optional options
 func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*ViperEx, error) {
 	changeAllKeysToLowerCase(allsettings)
@@ -67,6 +83,7 @@ func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*
 type ViperEx struct {
 	KeyDelimiter string
 	AllSettings  map[string]interface{}
+	EnvPrefix    string
 }
 
 // UpdateFromEnv will find potential ENV candidates to merge in
@@ -149,6 +166,12 @@ func (ve *ViperEx) getPotentialEnvVariables() map[string]string {
 	for _, element := range os.Environ() {
 		var index = strings.Index(element, "=")
 		key := element[0:index]
+		// check for prefix
+		if len(ve.EnvPrefix) > 0 {
+			if strings.HasPrefix(key, ve.EnvPrefix) {
+				key = key[len(ve.EnvPrefix):]
+			}
+		}
 		value := element[index+1:]
 		if strings.Contains(key, ve.KeyDelimiter) {
 			result[key] = value
