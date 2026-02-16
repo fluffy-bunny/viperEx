@@ -73,15 +73,18 @@ func ReadAppsettings(rootPath string) (*viper.Viper, error) {
 	myViper.SetConfigType("json")
 	configFile := "appsettings.json"
 	configPath := path.Join(rootPath, configFile)
-	viper.SetConfigFile(configPath)
+	myViper.SetConfigFile(configPath)
 	err = myViper.ReadInConfig()
-	if err == nil {
+	if err != nil {
 		return nil, err
 	}
-	configFile = "appsettings." + environment + ".json"
-	myViper.SetConfigFile(configPath)
-	err = myViper.MergeInConfig()
-	return myViper, err
+	if len(environment) > 0 {
+		configFile = "appsettings." + environment + ".json"
+		configPath = path.Join(rootPath, configFile)
+		myViper.SetConfigFile(configPath)
+		_ = myViper.MergeInConfig() // optional: env-specific config may not exist
+	}
+	return myViper, nil
 }
 
 func getConfigPath() string {
@@ -140,7 +143,7 @@ func TestViperExEnvUpdate(t *testing.T) {
 		panic(err)
 	}
 	for k := range envs {
-		os.Remove(k)
+		os.Unsetenv(k)
 	}
 
 	settings := Settings{}
