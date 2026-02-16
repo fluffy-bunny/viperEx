@@ -30,7 +30,7 @@ func newChangeAllKeysToLowerCase(m map[string]interface{}) map[string]interface{
 		case []interface{}:
 			var newSlice []interface{}
 			for _, item := range val {
-				if reflect.TypeOf(item).Kind() == reflect.Map {
+				if item != nil && reflect.TypeOf(item).Kind() == reflect.Map {
 					newSlice = append(newSlice, newChangeAllKeysToLowerCase(item.(map[string]interface{})))
 				} else {
 					newSlice = append(newSlice, item)
@@ -256,6 +256,7 @@ func defaultDecoderConfig(output interface{}, opts ...viper.DecoderConfigOption)
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
+			mapstructure.TextUnmarshallerHookFunc(),
 		),
 	}
 	for _, opt := range opts {
@@ -310,7 +311,7 @@ func changeStringArrayToInterfaceArray(m map[string]interface{}) {
 			m2 := make([]interface{}, 0)
 			for idx := range vv {
 				v := vv[idx]
-				m2 = append(m2, &v)
+				m2 = append(m2, v)
 			}
 			m[key] = m2
 		} else {
