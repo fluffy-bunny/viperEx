@@ -8,51 +8,73 @@
 package viperEx
 
 import (
-	"fmt"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
 const defaultKeyDelimiter = "."
 
-func newChangeAllKeysToLowerCase(m map[string]interface{}) map[string]interface{} {
-	newMap := make(map[string]interface{})
-	for k, v := range m {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			newMap[strings.ToLower(k)] = newChangeAllKeysToLowerCase(val)
-		case []interface{}:
-			var newSlice []interface{}
-			for _, item := range val {
-				if item != nil && reflect.TypeOf(item).Kind() == reflect.Map {
-					newSlice = append(newSlice, newChangeAllKeysToLowerCase(item.(map[string]interface{})))
-				} else {
-					newSlice = append(newSlice, item)
-				}
-			}
-			newMap[strings.ToLower(k)] = newSlice
-		default:
-			newMap[strings.ToLower(k)] = val
+// normalizeValue applies type normalization to a single value:
+// lowercases map keys, converts []string→[]interface{}, and
+// converts map[string]string→map[string]interface{}.
+func normalizeValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		return normalizeSettings(val)
+	case map[string]string:
+		newMap := make(map[string]interface{}, len(val))
+		for k, v := range val {
+			newMap[strings.ToLower(k)] = v
 		}
+		return newMap
+	case []interface{}:
+		newSlice := make([]interface{}, len(val))
+		for i, item := range val {
+			newSlice[i] = normalizeValue(item)
+		}
+		return newSlice
+	case []string:
+		newSlice := make([]interface{}, len(val))
+		for i, item := range val {
+			newSlice[i] = item
+		}
+		return newSlice
+	default:
+		return v
+	}
+}
+
+// normalizeSettings returns a deep copy of m with all map keys lowercased,
+// []string converted to []interface{}, and map[string]string converted to
+// map[string]interface{}. The original map is not modified.
+func normalizeSettings(m map[string]interface{}) map[string]interface{} {
+	newMap := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		newMap[strings.ToLower(k)] = normalizeValue(v)
 	}
 	return newMap
 }
 
-// WithEnvPrefix sets the prefix for environment variables
+// WithEnvPrefix sets the prefix for environment variables.
+// The prefix is automatically separated from keys by an underscore.
+// For example, WithEnvPrefix("APP") matches env vars like APP_some__key.
 func WithEnvPrefix(envPrefix string) func(*ViperEx) error {
 	return func(v *ViperEx) error {
+		envPrefix = strings.TrimRight(envPrefix, "_")
+		if len(envPrefix) == 0 {
+			return nil
+		}
 		v.EnvPrefix = envPrefix + "_"
 		return nil
 	}
 }
 
-// WithDelimiter sets the delimiter for keys
+// WithDelimiter sets the key path delimiter used to separate path segments.
+// The default delimiter is ".".
 func WithDelimiter(delimiter string) func(*ViperEx) error {
 	return func(v *ViperEx) error {
 		v.KeyDelimiter = delimiter
@@ -60,14 +82,12 @@ func WithDelimiter(delimiter string) func(*ViperEx) error {
 	}
 }
 
-// New creates a new ViperEx instance with optional options
+// New creates a new ViperEx instance with optional options.
+// The provided allsettings map is not modified; a normalized deep copy is used internally.
 func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*ViperEx, error) {
-	changeAllKeysToLowerCase(allsettings)
-	changeStringArrayToInterfaceArray(allsettings)
-	changeStringMapStringToStringMapInterface(allsettings)
 	viperEx := &ViperEx{
 		KeyDelimiter: defaultKeyDelimiter,
-		AllSettings:  newChangeAllKeysToLowerCase(allsettings),
+		AllSettings:  normalizeSettings(allsettings),
 	}
 	var err error
 	for _, option := range options {
@@ -79,55 +99,63 @@ func New(allsettings map[string]interface{}, options ...func(*ViperEx) error) (*
 	return viperEx, nil
 }
 
-// ViperEx type
+// ViperEx extends spf13/viper with surgical deep-path updates for nested
+// maps, arrays, and mixed structures using a configurable key delimiter.
 type ViperEx struct {
+	// KeyDelimiter separates path segments in deep-path keys (default ".").
 	KeyDelimiter string
-	AllSettings  map[string]interface{}
-	EnvPrefix    string
+	// AllSettings holds the normalized configuration map.
+	AllSettings map[string]interface{}
+	// EnvPrefix, when set, filters environment variables to only those
+	// starting with this prefix. Set via WithEnvPrefix.
+	EnvPrefix string
 }
 
-// UpdateFromEnv will find potential ENV candidates to merge in
-func (ve *ViperEx) UpdateFromEnv() error {
+// UpdateFromEnv finds environment variables whose keys contain the
+// configured delimiter and merges their values into the settings.
+// If an EnvPrefix is configured, only matching env vars are considered.
+func (ve *ViperEx) UpdateFromEnv() {
 	potential := ve.getPotentialEnvVariables()
 	for key, value := range potential {
 		ve.UpdateDeepPath(key, value)
 	}
-	return nil
 }
 
-// Find will return the interface to the data if it exists
-func (ve *ViperEx) Find(key string) interface{} {
+// Find returns the value at the given deep-path key and true if found,
+// or nil and false if the path does not exist.
+func (ve *ViperEx) Find(key string) (interface{}, bool) {
 	lcaseKey := strings.ToLower(key)
 	path := strings.Split(lcaseKey, ve.KeyDelimiter)
 
 	lastKey := strings.ToLower(path[len(path)-1])
 
-	fmt.Println(lastKey)
 	path = path[0 : len(path)-1]
 	if len(lastKey) == 0 {
-		return nil
+		return nil, false
 	}
 
 	deepestEntity := ve.deepSearch(ve.AllSettings, path)
 	deepestMap, ok := deepestEntity.(map[string]interface{})
 	if ok {
-		return deepestMap[lastKey]
+		val, exists := deepestMap[lastKey]
+		return val, exists
 	}
 
 	deepestArray, ok := deepestEntity.([]interface{})
 	if ok {
 		// lastKey has to be a num
 		idx, err := strconv.Atoi(lastKey)
-		if err == nil {
-			return deepestArray[idx]
+		if err == nil && idx >= 0 && idx < len(deepestArray) {
+			return deepestArray[idx], true
 		}
 	}
 
-	return nil
+	return nil, false
 }
 
-// UpdateDeepPath will update the value if it exists
-func (ve *ViperEx) UpdateDeepPath(key string, value interface{}) {
+// UpdateDeepPath updates the value at the given deep-path key, returning
+// true if the path was found and updated, or false if the path does not exist.
+func (ve *ViperEx) UpdateDeepPath(key string, value interface{}) bool {
 	lcaseKey := strings.ToLower(key)
 	path := strings.Split(lcaseKey, ve.KeyDelimiter)
 
@@ -135,7 +163,7 @@ func (ve *ViperEx) UpdateDeepPath(key string, value interface{}) {
 
 	path = path[0 : len(path)-1]
 	if len(lastKey) == 0 {
-		return
+		return false
 	}
 
 	deepestEntity := ve.deepSearch(ve.AllSettings, path)
@@ -145,20 +173,23 @@ func (ve *ViperEx) UpdateDeepPath(key string, value interface{}) {
 		_, ok := deepestMap[lastKey]
 		if ok {
 			deepestMap[lastKey] = value
+			return true
 		}
-	} else {
-		// is this an array
-		deepestArray, ok := deepestEntity.([]interface{})
-		if ok {
-			// lastKey has to be a num
-			idx, err := strconv.Atoi(lastKey)
-			if err == nil {
-				if idx < len(deepestArray) && idx >= 0 {
-					deepestArray[idx] = value
-				}
+		return false
+	}
+	// is this an array
+	deepestArray, ok := deepestEntity.([]interface{})
+	if ok {
+		// lastKey has to be a num
+		idx, err := strconv.Atoi(lastKey)
+		if err == nil {
+			if idx < len(deepestArray) && idx >= 0 {
+				deepestArray[idx] = value
+				return true
 			}
 		}
 	}
+	return false
 }
 func (ve *ViperEx) getPotentialEnvVariables() map[string]string {
 	var result map[string]string
@@ -168,9 +199,10 @@ func (ve *ViperEx) getPotentialEnvVariables() map[string]string {
 		key := element[0:index]
 		// check for prefix
 		if len(ve.EnvPrefix) > 0 {
-			if strings.HasPrefix(key, ve.EnvPrefix) {
-				key = key[len(ve.EnvPrefix):]
+			if !strings.HasPrefix(key, ve.EnvPrefix) {
+				continue
 			}
+			key = key[len(ve.EnvPrefix):]
 		}
 		value := element[index+1:]
 		if strings.Contains(key, ve.KeyDelimiter) {
@@ -180,33 +212,27 @@ func (ve *ViperEx) getPotentialEnvVariables() map[string]string {
 	return result
 }
 
+// deepSearch walks the settings tree along the given path segments.
+// It supports maps and arrays but does not support nested arrays-of-arrays;
+// when an array element is itself an array, the search returns nil.
 func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) interface{} {
 	if len(path) == 0 {
 		return m
 	}
-	var currentPath string
 	var stepArray = false
 	var currentArray []interface{}
 	var currentEntity interface{}
 	for _, k := range path {
-		if len(currentPath) == 0 {
-			currentPath = k
-		} else {
-			currentPath = fmt.Sprintf("%v.%v", currentPath, k)
-		}
 		if stepArray {
 			idx, err := strconv.Atoi(k)
 			if err != nil {
-				log.Error().Err(err).Msgf("No such path exists, must be an array idx: %v", currentPath)
 				return nil
 			}
 			if len(currentArray) <= idx {
-				log.Error().Msgf("No such path exists: %v", currentPath)
 				return nil
 			}
 			m3, ok := currentArray[idx].(map[string]interface{})
 			if !ok {
-				log.Error().Msgf("No such path exists: %v, error in mapping to a map[string]interface{}", currentPath)
 				return nil
 			}
 			// continue search from here
@@ -246,7 +272,7 @@ func (ve *ViperEx) deepSearch(m map[string]interface{}, path []string) interface
 
 // code copied from the viper project
 
-// defaultDecoderConfig returns default mapsstructure.DecoderConfig with suppot
+// defaultDecoderConfig returns default mapstructure.DecoderConfig with support
 // of time.Duration values & string slices
 func defaultDecoderConfig(output interface{}, opts ...viper.DecoderConfigOption) *mapstructure.DecoderConfig {
 	c := &mapstructure.DecoderConfig{
@@ -278,69 +304,4 @@ func decode(input interface{}, config *mapstructure.DecoderConfig) error {
 	}
 	return decoder.Decode(input)
 }
-func changeStringMapStringToStringMapInterface(m map[string]interface{}) {
-	var currentKeys []string
-	for key := range m {
-		currentKeys = append(currentKeys, key)
-	}
-	for _, key := range currentKeys {
-		vv, ok := m[key].(map[string]string)
-		if ok {
-			m2 := make(map[string]interface{})
-			for k, v := range vv {
-				m2[k] = v
-			}
-			m[key] = m2
-		} else {
-			v2, ok := m[key].(map[string]interface{})
-			if ok {
-				changeStringMapStringToStringMapInterface(v2)
-			}
-		}
-	}
-}
-func changeStringArrayToInterfaceArray(m map[string]interface{}) {
-	var currentKeys []string
-	for key := range m {
-		currentKeys = append(currentKeys, key)
-	}
 
-	for _, key := range currentKeys {
-		vv, ok := m[key].([]string)
-		if ok {
-			m2 := make([]interface{}, 0)
-			for idx := range vv {
-				v := vv[idx]
-				m2 = append(m2, v)
-			}
-			m[key] = m2
-		} else {
-			v2, ok := m[key].(map[string]interface{})
-			if ok {
-				changeStringArrayToInterfaceArray(v2)
-			}
-		}
-	}
-}
-
-func changeAllKeysToLowerCase(m map[string]interface{}) {
-	var lcMap = make(map[string]interface{})
-	var currentKeys []string
-	for key, value := range m {
-		currentKeys = append(currentKeys, key)
-		lcMap[strings.ToLower(key)] = value
-	}
-	// delete original values
-	for _, k := range currentKeys {
-		delete(m, k)
-	}
-	// put the lowercase ones in the original map
-	for key, value := range lcMap {
-		m[key] = value
-		vMap, ok := value.(map[string]interface{})
-		if ok {
-			// if the current value is a map[string]interface{}, keep going
-			changeAllKeysToLowerCase(vMap)
-		}
-	}
-}

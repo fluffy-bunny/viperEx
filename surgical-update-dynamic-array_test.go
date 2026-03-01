@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	ConfigDefaultJSON = []byte(`
+	configDefaultJSON = []byte(`
 {
 	"nest": {}
 }
@@ -46,7 +46,7 @@ func TestViperExEnvUpdate_dynamic_nest(t *testing.T) {
 	err := json.Unmarshal([]byte(stemEgg), egg)
 	require.NoError(t, err)
 	var dynamicConfig = &DynamicConfig{}
-	err = json.Unmarshal([]byte(ConfigDefaultJSON), dynamicConfig)
+	err = json.Unmarshal(configDefaultJSON, dynamicConfig)
 	require.NoError(t, err)
 	for i := 0; i < numEggs; i++ {
 		newEgg := &Egg{}
@@ -62,7 +62,7 @@ func TestViperExEnvUpdate_dynamic_nest(t *testing.T) {
 	myViper.ReadConfig(bytes.NewBuffer(finalJSON))
 
 	allSettings := myViper.AllSettings()
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
 
 	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
 		ve.KeyDelimiter = keyDelim
@@ -97,12 +97,12 @@ func TestViperExEnvUpdate_dynamic_nest(t *testing.T) {
 	for k, v := range envs {
 		t.Setenv(k, v)
 	}
-	err = myViperEx.UpdateFromEnv()
-	require.NoError(t, err)
+	myViperEx.UpdateFromEnv()
 
 	settings := &DynamicConfig{}
 	err = myViperEx.Unmarshal(&settings)
-	fmt.Println(PrettyJSON(allSettings))
+	require.NoError(t, err)
+	t.Log(prettyJSON(allSettings))
 
 	for idx, egg := range settings.Nest.Eggs {
 		require.Equal(t, fmt.Sprintf("name%d", idx), egg.Name, "egg name")
