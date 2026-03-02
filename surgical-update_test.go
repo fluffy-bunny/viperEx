@@ -9,16 +9,15 @@ package viperEx
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
 
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type NestedMap struct {
@@ -92,16 +91,12 @@ func getConfigPath() string {
 	_, err := os.Stat("./settings")
 	if !os.IsNotExist(err) {
 		configPath, _ = filepath.Abs("./settings")
-		log.Info().Str("path", configPath).Msg("Configuration Root Folder")
 	}
 	return configPath
 }
 func chdirToTestFolder() {
 	_, filename, _, _ := runtime.Caller(0)
-	// The ".." may change depending on you folder structure
 	dir := path.Join(path.Dir(filename), ".")
-	fmt.Println(filename)
-	fmt.Println(dir)
 	err := os.Chdir(dir)
 	if err != nil {
 		panic(err)
@@ -111,20 +106,19 @@ func chdirToTestFolder() {
 func TestViperExEnvUpdate(t *testing.T) {
 	configPath := getConfigPath()
 	myViper, err := ReadAppsettings(configPath)
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	allSettings := myViper.AllSettings()
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
 
 	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
 		ve.KeyDelimiter = keyDelim
 		return nil
 	})
+	require.NoError(t, err)
+
 	expectedURI := "https://www.blah.com/?ssl=true&a=b&c=d"
 	envs := map[string]string{
-
 		"APPLICATION_ENVIRONMENT":             "Test",
 		"nest__Eggs__1__Weight":               "5555",
 		"nest__Eggs__1__SomeValues__1__Value": "Heidi",
@@ -132,27 +126,15 @@ func TestViperExEnvUpdate(t *testing.T) {
 		"nest__masteregg__name":               expectedURI,
 	}
 	for k, v := range envs {
-		os.Setenv(k, v)
+		t.Setenv(k, v)
 	}
-	os.Setenv("APPLICATION_ENVIRONMENT", "Test")
 
-	err = myViperEx.UpdateFromEnv()
-	fmt.Println(PrettyJSON(allSettings))
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
-	for k := range envs {
-		os.Unsetenv(k)
-	}
+	myViperEx.UpdateFromEnv()
+	t.Log(prettyJSON(allSettings))
 
 	settings := Settings{}
 	err = myViperEx.Unmarshal(&settings)
-	fmt.Println(PrettyJSON(allSettings))
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, expectedURI, settings.Nest.MasterEgg.Name)
 	assert.Equal(t, "straw", settings.Nest.Name)
@@ -163,16 +145,17 @@ func TestViperExEnvUpdate(t *testing.T) {
 func TestViperSurgicalUpdate_URIWithArgs(t *testing.T) {
 	configPath := getConfigPath()
 	myViper, err := ReadAppsettings(configPath)
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	allSettings := myViper.AllSettings()
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
+
 	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
 		ve.KeyDelimiter = "__"
 		return nil
 	})
+	require.NoError(t, err)
+
 	expectedURI := "https://www.blah.com/?ssl=true&a=b&c=d"
 	envs := map[string]interface{}{
 		"name": expectedURI,
@@ -182,14 +165,12 @@ func TestViperSurgicalUpdate_URIWithArgs(t *testing.T) {
 	for k, v := range envs {
 		myViperEx.UpdateDeepPath(k, v)
 	}
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
 
 	settings := SettingsWithNestedMap{}
 	err = myViperEx.Unmarshal(&settings)
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	assert.Equal(t, expectedURI, settings.Name)
 	assert.Equal(t, expectedURI, settings.NestedMap.Eggs["bob"].SomeValues[1].Value)
 	assert.Equal(t, expectedURI, settings.MasterEgg.Name)
@@ -198,17 +179,16 @@ func TestViperSurgicalUpdate_URIWithArgs(t *testing.T) {
 func TestViperSurgicalUpdate_NestedMap(t *testing.T) {
 	configPath := getConfigPath()
 	myViper, err := ReadAppsettings(configPath)
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	allSettings := myViper.AllSettings()
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
 
 	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
 		ve.KeyDelimiter = "__"
 		return nil
 	})
+	require.NoError(t, err)
 
 	envs := map[string]interface{}{
 		"name":                                         "bowie",
@@ -224,14 +204,11 @@ func TestViperSurgicalUpdate_NestedMap(t *testing.T) {
 		myViperEx.UpdateDeepPath(k, v)
 	}
 
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
 
 	settings := SettingsWithNestedMap{}
 	err = myViperEx.Unmarshal(&settings)
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, "bowie", settings.Name)
 	assert.Equal(t, int32(1234), settings.NestedMap.Eggs["bob"].Weight)
 	assert.Equal(t, "abcd", settings.NestedMap.Eggs["bob"].SomeValues[1].Value)
@@ -239,29 +216,28 @@ func TestViperSurgicalUpdate_NestedMap(t *testing.T) {
 	_, ok := allSettings["junk"]
 	assert.False(t, ok)
 
-	name := myViperEx.Find("name")
-	assert.NotNil(t, name)
+	_, found := myViperEx.Find("name")
+	assert.True(t, found)
 
-	nestJunk := myViperEx.Find("nestedMap__Eggs__junk")
-	assert.Nil(t, nestJunk)
+	_, found = myViperEx.Find("nestedMap__Eggs__junk")
+	assert.False(t, found)
 
-	nestJunk = myViperEx.Find("nestedMap__Eggs__junk__SomeStrings__1__Value")
-	assert.Nil(t, nestJunk)
+	_, found = myViperEx.Find("nestedMap__Eggs__junk__SomeStrings__1__Value")
+	assert.False(t, found)
 }
 func TestViperSurgicalUpdate(t *testing.T) {
 	configPath := getConfigPath()
 	myViper, err := ReadAppsettings(configPath)
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	allSettings := myViper.AllSettings()
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
 
 	myViperEx, err := New(allSettings, func(ve *ViperEx) error {
 		ve.KeyDelimiter = "__"
 		return nil
 	})
+	require.NoError(t, err)
 	envs := map[string]interface{}{
 		"nest__MasterEgg__Weight":             1,
 		"nest__Eggs__0__Weight":               1234,
@@ -279,14 +255,11 @@ func TestViperSurgicalUpdate(t *testing.T) {
 		myViperEx.UpdateDeepPath(k, v)
 	}
 
-	fmt.Println(PrettyJSON(allSettings))
+	t.Log(prettyJSON(allSettings))
 
 	settings := Settings{}
 	err = myViperEx.Unmarshal(&settings)
-	assert.NoError(t, err)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, "abcd", settings.SomeStrings[0])
 	assert.Equal(t, "bob", settings.Name)
 	assert.Equal(t, int32(1), settings.Nest.MasterEgg.Weight)
@@ -297,51 +270,123 @@ func TestViperSurgicalUpdate(t *testing.T) {
 	_, ok := allSettings["junk"]
 	assert.False(t, ok)
 
-	name := myViperEx.Find("name")
-	assert.NotNil(t, name)
+	_, found := myViperEx.Find("name")
+	assert.True(t, found)
 
-	nestJunk := myViperEx.Find("nest__junk")
-	assert.Nil(t, nestJunk)
+	_, found = myViperEx.Find("nest__junk")
+	assert.False(t, found)
 
 	var item interface{}
 
-	item = myViperEx.Find("nest__Eggs")
+	item, found = myViperEx.Find("nest__Eggs")
+	assert.True(t, found)
 	assert.NotNil(t, item)
 
-	item = myViperEx.Find("nest__Eggs")
+	item, found = myViperEx.Find("nest__Eggs")
+	assert.True(t, found)
 	assert.NotNil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__")
-	assert.Nil(t, item)
+	_, found = myViperEx.Find("nest__Eggs__")
+	assert.False(t, found)
 
-	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1")
+	item, found = myViperEx.Find("nest__Eggs__0__SomeStrings__1")
+	assert.True(t, found)
 	assert.NotNil(t, item)
 
-	item = myViperEx.Find("nest__Eggs__0__SomeStrings__1__")
-	assert.Nil(t, item)
+	_, found = myViperEx.Find("nest__Eggs__0__SomeStrings__1__")
+	assert.False(t, found)
 
-	item = myViperEx.Find("nest__Eggs__0__Junk__1")
-	assert.Nil(t, item)
+	_, found = myViperEx.Find("nest__Eggs__0__Junk__1")
+	assert.False(t, found)
 
-	item = myViperEx.Find("nest__junk__0__Junk__1")
-	assert.Nil(t, item)
+	_, found = myViperEx.Find("nest__junk__0__Junk__1")
+	assert.False(t, found)
 
-	item = myViperEx.Find("nest__junk__0")
-	assert.Nil(t, item)
+	_, found = myViperEx.Find("nest__junk__0")
+	assert.False(t, found)
 }
 
-// PrettyJSON to string
-func PrettyJSON(obj interface{}) string {
-	jsonBytes, err := json.MarshalIndent(obj, "", "    ")
-	if err != nil {
-		panic(err)
+func TestWithDelimiter(t *testing.T) {
+	settings := map[string]interface{}{
+		"level1": map[string]interface{}{
+			"level2": map[string]interface{}{
+				"value": "deep",
+			},
+		},
 	}
-	return string(jsonBytes)
+	ve, err := New(settings, WithDelimiter("__"))
+	require.NoError(t, err)
+	assert.Equal(t, "__", ve.KeyDelimiter)
+
+	val, found := ve.Find("level1__level2__value")
+	assert.True(t, found)
+	assert.Equal(t, "deep", val)
+
+	// default delimiter should not work with __ paths
+	ve2, err := New(settings)
+	require.NoError(t, err)
+	assert.Equal(t, ".", ve2.KeyDelimiter)
+
+	val, found = ve2.Find("level1.level2.value")
+	assert.True(t, found)
+	assert.Equal(t, "deep", val)
 }
 
-// JSON from object
-func JSON(obj interface{}) string {
-	jsonBytes, err := json.Marshal(obj)
+func TestWithEnvPrefix(t *testing.T) {
+	settings := map[string]interface{}{
+		"name": "original",
+	}
+
+	// Normal prefix
+	ve, err := New(settings, WithDelimiter("__"), WithEnvPrefix("MYAPP"))
+	require.NoError(t, err)
+	assert.Equal(t, "MYAPP_", ve.EnvPrefix)
+
+	// Prefix with trailing underscore should not double up
+	ve2, err := New(settings, WithDelimiter("__"), WithEnvPrefix("MYAPP_"))
+	require.NoError(t, err)
+	assert.Equal(t, "MYAPP_", ve2.EnvPrefix)
+
+	// Empty prefix should be ignored
+	ve3, err := New(settings, WithDelimiter("__"), WithEnvPrefix(""))
+	require.NoError(t, err)
+	assert.Equal(t, "", ve3.EnvPrefix)
+}
+
+func TestUpdateDeepPath_ReturnValue(t *testing.T) {
+	settings := map[string]interface{}{
+		"name": "bob",
+		"nest": map[string]interface{}{
+			"tags": []interface{}{"A", "B"},
+		},
+	}
+	ve, err := New(settings, WithDelimiter("__"))
+	require.NoError(t, err)
+
+	// Existing key returns true
+	assert.True(t, ve.UpdateDeepPath("name", "alice"))
+	val, found := ve.Find("name")
+	assert.True(t, found)
+	assert.Equal(t, "alice", val)
+
+	// Non-existing key returns false
+	assert.False(t, ve.UpdateDeepPath("nonexistent", "value"))
+
+	// Existing array index returns true
+	assert.True(t, ve.UpdateDeepPath("nest__tags__0", "C"))
+	val, found = ve.Find("nest__tags__0")
+	assert.True(t, found)
+	assert.Equal(t, "C", val)
+
+	// Out-of-range array index returns false
+	assert.False(t, ve.UpdateDeepPath("nest__tags__99", "X"))
+
+	// Trailing delimiter returns false
+	assert.False(t, ve.UpdateDeepPath("name__", "value"))
+}
+
+func prettyJSON(obj interface{}) string {
+	jsonBytes, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
 		panic(err)
 	}
